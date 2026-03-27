@@ -53,25 +53,6 @@
             border-radius: 3px;
         }
 
-        /* Info panel */
-        #infoPanel {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 260px;
-            height: 100vh;
-            background: #eef2f5;
-            border-left: 1px solid #ccc;
-            padding: 10px;
-            overflow-y: auto;
-            z-index: 2000;
-        }
-
-        #infoPanel h2 {
-            margin-top: 0;
-            font-size: 18px;
-        }
-
         #downloadBtn {
             position: absolute;
             top: 10px;
@@ -88,7 +69,7 @@
             position: absolute;
             top: 0;
             left: 260px;
-            width: calc(100vw - 520px);
+            width: calc(100vw - 260px);
             height: 100vh;
         }
     </style>
@@ -98,11 +79,6 @@
 <div id="sidebar">
     <h2>ENC sélectionnées</h2>
     <div id="encList"></div>
-</div>
-
-<div id="infoPanel">
-    <h2>Info ENC</h2>
-    <div id="infoContent">Cliquez un ENC pour voir ses attributs.</div>
 </div>
 
 <button id="downloadBtn">Download Selected Polygons</button>
@@ -203,9 +179,8 @@
         updateSidebar();
     }
 
-    function showInfo(feature) {
-        const panel = document.getElementById("infoContent");
-        panel.innerHTML = "";
+    function buildPopupContent(feature) {
+        let html = "";
 
         const title =
             feature.properties.CELL_NAME ||
@@ -213,11 +188,13 @@
             feature.properties.DSNM ||
             "ENC";
 
-        panel.innerHTML += `<h3>${title}</h3>`;
+        html += `<h3>${title}</h3>`;
 
         for (const key in feature.properties) {
-            panel.innerHTML += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+            html += `<b>${key}</b>: ${feature.properties[key]}<br>`;
         }
+
+        return html;
     }
 
     fetch("data/ENCs.geojson")
@@ -239,9 +216,11 @@
                         }
                     });
 
-                    layer.on("click", function () {
-                        showInfo(feature);
+                    layer.on("click", function (e) {
                         toggleSelection(layer);
+
+                        const popupContent = buildPopupContent(feature);
+                        layer.bindPopup(popupContent).openPopup(e.latlng);
                     });
                 }
             }).addTo(map);
