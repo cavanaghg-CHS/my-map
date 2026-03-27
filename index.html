@@ -3,41 +3,113 @@
 <head>
     <title>My Map</title>
 
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-    <!-- Leaflet Draw CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
 
     <style>
-        #map {
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Sidebar: Selected ENC list */
+        #sidebar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 260px;
             height: 100vh;
-            width: 100vw;
+            background: #f7f7f7;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 2000;
+        }
+
+        #sidebar h2 {
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        .enc-item {
+            padding: 6px;
+            margin-bottom: 6px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .remove-btn {
+            background: #d9534f;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        /* Info panel */
+        #infoPanel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 260px;
+            height: 100vh;
+            background: #eef2f5;
+            border-left: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 2000;
+        }
+
+        #infoPanel h2 {
+            margin-top: 0;
+            font-size: 18px;
         }
 
         #downloadBtn {
             position: absolute;
-            z-index: 1000;
-            margin: 10px;
-            padding: 6px 12px;
+            top: 10px;
+            left: 280px;
+            z-index: 1500;
+            padding: 8px 14px;
             background: white;
             border: 1px solid #333;
             cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 260px;
+            width: calc(100vw - 520px);
+            height: 100vh;
         }
     </style>
 </head>
 <body>
 
+<div id="sidebar">
+    <h2>ENC sélectionnées</h2>
+    <div id="encList"></div>
+</div>
+
+<div id="infoPanel">
+    <h2>Info ENC</h2>
+    <div id="infoContent">Cliquez un ENC pour voir ses attributs.</div>
+</div>
+
 <button id="downloadBtn">Download Selected Polygons</button>
 <div id="map"></div>
 
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- Leaflet Draw JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
-<!-- Turf.js -->
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <script>
@@ -65,17 +137,99 @@
     });
     map.addControl(drawControl);
 
+    function highlight(layer) {
+        layer.setStyle({ color: "yellow", weight: 3 });
+    }
+
+    function unhighlight(layer) {
+        layer.setStyle({ color: "#3388ff", weight: 1 });
+    }
+
+    function updateSidebar() {
+        const list = document.getElementById("encList");
+        list.innerHTML = "";
+
+        selected.forEach(feature => {
+            const div = document.createElement("div");
+            div.className = "enc-item";
+
+            const name = feature.properties.NAME || feature.properties.ID || "ENC";
+
+            div.innerHTML = `
+                <span>${name}</span>
+                <button class="remove-btn">X</button>
+            `;
+
+            div.querySelector(".remove-btn").onclick = () => {
+                removeFeature(feature);
+            };
+
+            list.appendChild(div);
+        });
+    }
+
+    function removeFeature(feature) {
+        selected = selected.filter(f => f.properties.ID !== feature.properties.ID);
+
+        encLayer.eachLayer(layer => {
+            if (layer.feature.properties.ID === feature.properties.ID) {
+                unhighlight(layer);
+            }
+        });
+
+        updateSidebar();
+    }
+
+    function showInfo(feature) {
+        const panel = document.getElementById("infoContent");
+        panel.innerHTML = "";
+
+        for (const key in feature.properties) {
+            panel.innerHTML += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+        }
+    }
+
+    function toggleSelection(layer) {
+        const geo = layer.toGeoJSON();
+        const id = geo.properties.ID;
+
+        const exists = selected.find(f => f.properties.ID === id);
+
+        if (exists) {
+            removeFeature(geo);
+        } else {
+            selected.push(geo);
+            highlight(layer);
+            updateSidebar();
+        }
+    }
+
     fetch("data/ENCs.geojson")
         .then(r => r.json())
         .then(data => {
             encLayer = L.geoJSON(data, {
-                style: { color: "#3388ff", weight: 1 }
+                style: { color: "#3388ff", weight: 1 },
+                onEachFeature: function (feature, layer) {
+
+                    layer.on("mouseover", function () {
+                        if (!selected.find(f => f.properties.ID === feature.properties.ID)) {
+                            layer.setStyle({ weight: 3 });
+                        }
+                    });
+
+                    layer.on("mouseout", function () {
+                        if (!selected.find(f => f.properties.ID === feature.properties.ID)) {
+                            layer.setStyle({ weight: 1 });
+                        }
+                    });
+
+                    layer.on("click", function () {
+                        showInfo(feature);
+                        toggleSelection(layer);
+                    });
+                }
             }).addTo(map);
         });
-
-    function highlight(layer) {
-        layer.setStyle({ color: "yellow", weight: 3 });
-    }
 
     map.on(L.Draw.Event.CREATED, function(e) {
         var layer = e.layer;
@@ -86,12 +240,14 @@
             var encGeo = encFeatureLayer.toGeoJSON();
 
             if (turf.booleanIntersects(drawnGeo, encGeo)) {
-                if (!selected.includes(encGeo)) {
+                if (!selected.find(f => f.properties.ID === encGeo.properties.ID)) {
                     selected.push(encGeo);
+                    highlight(encFeatureLayer);
                 }
-                highlight(encFeatureLayer);
             }
         });
+
+        updateSidebar();
     });
 
     document.getElementById("downloadBtn").onclick = function () {
