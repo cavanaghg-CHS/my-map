@@ -4,10 +4,8 @@
     <title>My Map</title>
 
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/ <!-- Leaflet Draw CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/leaflet.draw.css
-
-    <style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leafw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/
         #map {
             height: 100vh;
             width: 100vw;
@@ -30,20 +28,16 @@
 <div id="map"></div>
 
 <!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet.js
+<script src="https://flet/dist/leaflet.js
 
 <!-- Leaflet Draw JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.raw.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1draw.js
 
 <!-- Turf.js -->
-<script src="https://cdn.jsdelivr.net/npm/@urf.min.js
-
-<script>
-    // Center on Canada
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.jscript>
     var canadaCenter = [56.1304, -106.3468];
     var map = L.map('map').setView(canadaCenter, 4);
 
-    // Basemap
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
     }).addTo(map);
@@ -53,11 +47,8 @@
     let drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
 
-    // Drawing tools
     var drawControl = new L.Control.Draw({
-        edit: {
-            featureGroup: drawnItems
-        },
+        edit: { featureGroup: drawnItems },
         draw: {
             polygon: true,
             polyline: true,
@@ -68,7 +59,6 @@
     });
     map.addControl(drawControl);
 
-    // Load ENC polygons
     fetch("data/ENCs.geojson")
         .then(r => r.json())
         .then(data => {
@@ -77,19 +67,13 @@
             }).addTo(map);
         });
 
-    // Highlight styles
     function highlight(layer) {
         layer.setStyle({ color: "yellow", weight: 3 });
     }
-    function unhighlight(layer) {
-        layer.setStyle({ color: "#3388ff", weight: 1 });
-    }
 
-    // When user draws something
     map.on(L.Draw.Event.CREATED, function(e) {
         var layer = e.layer;
         drawnItems.addLayer(layer);
-
         var drawnGeo = layer.toGeoJSON();
 
         encLayer.eachLayer(function(encFeatureLayer) {
@@ -101,17 +85,13 @@
         });
     });
 
-    // Download button
     document.getElementById("downloadBtn").onclick = function () {
         if (selected.length === 0) {
             alert("No polygons selected!");
             return;
         }
 
-        let fc = {
-            "type": "FeatureCollection",
-            "features": selected
-        };
+        let fc = { type: "FeatureCollection", features: selected };
 
         let blob = new Blob([JSON.stringify(fc)], { type: "application/json" });
         let url = URL.createObjectURL(blob);
