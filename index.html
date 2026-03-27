@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Map</title>
+    <title>ENC Viewer</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
@@ -145,6 +145,24 @@
         layer.setStyle({ color: "#3388ff", weight: 1 });
     }
 
+    function isSelected(feature) {
+        return selected.some(f => f.properties.ID === feature.properties.ID);
+    }
+
+    function toggleSelection(layer) {
+        const feature = layer.feature;
+
+        if (isSelected(feature)) {
+            selected = selected.filter(f => f.properties.ID !== feature.properties.ID);
+            unhighlight(layer);
+        } else {
+            selected.push(feature);
+            highlight(layer);
+        }
+
+        updateSidebar();
+    }
+
     function updateSidebar() {
         const list = document.getElementById("encList");
         list.innerHTML = "";
@@ -153,7 +171,12 @@
             const div = document.createElement("div");
             div.className = "enc-item";
 
-            const name = feature.properties.NAME || feature.properties.ID || "ENC";
+            const name =
+                feature.properties.CELL_NAME ||
+                feature.properties.NAME ||
+                feature.properties.DSNM ||
+                feature.properties.ID ||
+                "ENC";
 
             div.innerHTML = `
                 <span>${name}</span>
@@ -184,23 +207,16 @@
         const panel = document.getElementById("infoContent");
         panel.innerHTML = "";
 
+        const title =
+            feature.properties.CELL_NAME ||
+            feature.properties.NAME ||
+            feature.properties.DSNM ||
+            "ENC";
+
+        panel.innerHTML += `<h3>${title}</h3>`;
+
         for (const key in feature.properties) {
             panel.innerHTML += `<b>${key}</b>: ${feature.properties[key]}<br>`;
-        }
-    }
-
-    function toggleSelection(layer) {
-        const geo = layer.toGeoJSON();
-        const id = geo.properties.ID;
-
-        const exists = selected.find(f => f.properties.ID === id);
-
-        if (exists) {
-            removeFeature(geo);
-        } else {
-            selected.push(geo);
-            highlight(layer);
-            updateSidebar();
         }
     }
 
@@ -212,13 +228,13 @@
                 onEachFeature: function (feature, layer) {
 
                     layer.on("mouseover", function () {
-                        if (!selected.find(f => f.properties.ID === feature.properties.ID)) {
+                        if (!isSelected(feature)) {
                             layer.setStyle({ weight: 3 });
                         }
                     });
 
                     layer.on("mouseout", function () {
-                        if (!selected.find(f => f.properties.ID === feature.properties.ID)) {
+                        if (!isSelected(feature)) {
                             layer.setStyle({ weight: 1 });
                         }
                     });
@@ -240,7 +256,7 @@
             var encGeo = encFeatureLayer.toGeoJSON();
 
             if (turf.booleanIntersects(drawnGeo, encGeo)) {
-                if (!selected.find(f => f.properties.ID === encGeo.properties.ID)) {
+                if (!isSelected(encGeo)) {
                     selected.push(encGeo);
                     highlight(encFeatureLayer);
                 }
