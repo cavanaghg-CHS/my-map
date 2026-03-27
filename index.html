@@ -53,9 +53,9 @@
             border-radius: 3px;
         }
 
-        /* Move Leaflet controls just outside the sidebar */
+        /* Move Leaflet controls only 5px from the left */
         .leaflet-top.leaflet-left {
-            left: 265px !important;
+            left: 5px !important;
         }
 
         /* Download button on the right */
@@ -128,14 +128,14 @@
     }
 
     function isSelected(feature) {
-        return selected.some(f => f.properties.ID === feature.properties.ID);
+        return selected.some(f => f.properties["Cell name"] === feature.properties["Cell name"]);
     }
 
     function toggleSelection(layer) {
         const feature = layer.feature;
 
         if (isSelected(feature)) {
-            selected = selected.filter(f => f.properties.ID !== feature.properties.ID);
+            selected = selected.filter(f => f.properties["Cell name"] !== feature.properties["Cell name"]);
             unhighlight(layer);
         } else {
             selected.push(feature);
@@ -153,14 +153,7 @@
             const div = document.createElement("div");
             div.className = "enc-item";
 
-            /* Correct field: "Cell name" */
-            const name =
-                feature.properties["Cell name"] ||
-                feature.properties.CELL_NAME ||
-                feature.properties.NAME ||
-                feature.properties.DSNM ||
-                feature.properties.ID ||
-                "ENC";
+            const name = feature.properties["Cell name"];
 
             div.innerHTML = `
                 <span>${name}</span>
@@ -176,10 +169,10 @@
     }
 
     function removeFeature(feature) {
-        selected = selected.filter(f => f.properties.ID !== feature.properties.ID);
+        selected = selected.filter(f => f.properties["Cell name"] !== feature.properties["Cell name"]);
 
         encLayer.eachLayer(layer => {
-            if (layer.feature.properties.ID === feature.properties.ID) {
+            if (layer.feature.properties["Cell name"] === feature.properties["Cell name"]) {
                 unhighlight(layer);
             }
         });
@@ -190,12 +183,7 @@
     function buildPopupContent(feature) {
         let html = "";
 
-        const title =
-            feature.properties["Cell name"] ||
-            feature.properties.CELL_NAME ||
-            feature.properties.NAME ||
-            feature.properties.DSNM ||
-            "ENC";
+        const title = feature.properties["Cell name"];
 
         html += `<h3>${title}</h3>`;
 
@@ -234,25 +222,6 @@
                 }
             }).addTo(map);
         });
-
-    map.on(L.Draw.Event.CREATED, function(e) {
-        var layer = e.layer;
-        drawnItems.addLayer(layer);
-        var drawnGeo = layer.toGeoJSON();
-
-        encLayer.eachLayer(function(encFeatureLayer) {
-            var encGeo = encFeatureLayer.toGeoJSON();
-
-            if (turf.booleanIntersects(drawnGeo, encGeo)) {
-                if (!isSelected(encGeo)) {
-                    selected.push(encGeo);
-                    highlight(encFeatureLayer);
-                }
-            }
-        });
-
-        updateSidebar();
-    });
 
     document.getElementById("downloadBtn").onclick = function () {
         if (selected.length === 0) {
