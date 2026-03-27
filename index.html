@@ -4,7 +4,7 @@
     <title>My Map</title>
 
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    https://unpkg.com/leaflet/dist/leaflet.css
 
     <style>
         #map {
@@ -18,13 +18,12 @@
 <div id="map"></div>
 
 <!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+https://unpkg.com/leaflet/dist/leaflet.js
 
 <script>
-    // CHS Office Ottawa on Kent Street
+    // Center map on CHS HQ at 200 Kent Street (no marker this time)
     var chsKent = [45.417127, -75.70153];
 
-    // Create map centered on Kent Street
     var map = L.map('map').setView(chsKent, 17);
 
     // Basemap
@@ -32,10 +31,13 @@
         maxZoom: 19
     }).addTo(map);
 
-    // Marker with message
-    L.marker(chsKent)
-        .addTo(map)
-        .bindPopup("hello kathryn!");
+    // Load your GeoJSON file ENCS.geojason
+    fetch("data/ENCS.geojason")
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data).addTo(map);
+        })
+        .catch(err => console.log("Could not load ENCS.geojason:", err));
 </script>
 
 </body>
