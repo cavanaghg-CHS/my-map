@@ -3,9 +3,8 @@
 <head>
     <title>My Map</title>
 
-    <!-- Leaflet CSS -->
+    <!-- Leaflet CSS (correct syntax) -->
     https://unpkg.com/leaflet/dist/leaflet.css
-
     <style>
         #map {
             height: 100vh;
@@ -17,13 +16,12 @@
 
 <div id="map"></div>
 
-<!-- Leaflet JS -->
+<!-- Leaflet JS (correct syntax) -->
 https://unpkg.com/leaflet/dist/leaflet.js
 
 <script>
-    // Center map on all of Canada
+    // Center the map on Canada
     var canadaCenter = [56.1304, -106.3468];
-
     var map = L.map('map').setView(canadaCenter, 4);
 
     // Basemap
@@ -37,7 +35,7 @@ https://unpkg.com/leaflet/dist/leaflet.js
         .then(data => {
             L.geoJSON(data).addTo(map);
         })
-        .catch(err => console.log("Could not load ENCs.geojson:", err));
+        .catch(err => console.error("Could not load ENCs.geojson:", err));
 </script>
 
 </body>
