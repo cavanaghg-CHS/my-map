@@ -3,7 +3,7 @@
 <head>
     <title>My Map</title>
 
-    <!-- Leaflet CSS (correct format, this fixes your problem) -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
     <style>
@@ -31,13 +31,13 @@
         maxZoom: 19
     }).addTo(map);
 
-    // Load your GeoJSON file ENCS.geojason
-    fetch("data/ENCS.geojason")
+    // Load your GeoJSON file ENCs.geojson
+    fetch("data/ENCs.geojson")
         .then(response => response.json())
         .then(data => {
             L.geoJSON(data).addTo(map);
         })
-        .catch(err => console.log("Could not load ENCS.geojason:", err));
+        .catch(err => console.log("Could not load ENCs.geojson:", err));
 </script>
 
 </body>
