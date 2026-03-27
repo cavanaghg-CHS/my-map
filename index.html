@@ -4,23 +4,41 @@
     <title>My Map</title>
 
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <style>
-        #map {
+    <link rel="stylesheet" href="https://uncss
+
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaf     #map {
             height: 100vh;
             width: 100vw;
+        }
+
+        #downloadBtn {
+            position: absolute;
+            z-index: 1000;
+            margin: 10px;
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #333;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
+<button id="downloadBtn">Download Selected Polygons</button>
 <div id="map"></div>
 
 <!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+https://unpkg.com/leaflet/dist/leaflet.js
+
+<!-- Leaflet Draw JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.w.js
+
+<!-- Turf.js for spatial analysis -->
+<script src="https://cdn.jsdelivr.net/npm/@turf/tn.js
 
 <script>
-    // Center the map on Canada
+    // Center on Canada
     var canadaCenter = [56.1304, -106.3468];
     var map = L.map('map').setView(canadaCenter, 4);
 
@@ -29,25 +47,97 @@
         maxZoom: 19
     }).addTo(map);
 
-    // Load your GeoJSON file ENCs.geojson
+    let encLayer;              // will store your ENC polygons
+    let selected = [];         // selected ENC features
+    let drawnItems = new L.FeatureGroup(); // drawn shapes
+
+    map.addLayer(drawnItems);
+
+    // Add drawing toolbar
+    var drawControl = new L.Control.Draw({
+        edit: {
+            featureGroup: drawnItems
+        },
+        draw: {
+            polygon: true,
+            polyline: true,
+            rectangle: true,
+            circle: false,   // set to true if you want circles
+            marker: true
+        }
+    });
+
+    map.addControl(drawControl);
+
+    // Load ENC polygons
     fetch("data/ENCs.geojson")
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
-            L.geoJSON(data, {
-                onEachFeature: function (feature, layer) {
-                    // Build popup with all attribute information
-                    let props = feature.properties;
-                    let html = "<b>Feature info</b><br>";
-
-                    for (let key in props) {
-                        html += key + ": " + props[key] + "<br>";
-                    }
-
-                    layer.bindPopup(html);
+            encLayer = L.geoJSON(data, {
+                style: {
+                    color: "#3388ff",
+                    weight: 1
                 }
             }).addTo(map);
-        })
-        .catch(err => console.error("Could not load ENCs.geojson:", err));
+        });
+
+    // Styling for selected ENC polygons
+    function highlight(layer) {
+        layer.setStyle({
+            color: "yellow",
+            weight: 3
+        });
+    }
+
+    function unhighlight(layer) {
+        layer.setStyle({
+            color: "#3388ff",
+            weight: 1
+        });
+    }
+
+    // When user finishes drawing something
+    map.on(L.Draw.Event.CREATED, function(e) {
+        var layer = e.layer;
+        drawnItems.addLayer(layer);
+
+        // Convert drawn shape to GeoJSON
+        var drawnGeo = layer.toGeoJSON();
+
+        // For each ENC polygon, check spatial intersection with the drawing
+        encLayer.eachLayer(function(encFeatureLayer) {
+            var encGeo = encFeatureLayer.toGeoJSON();
+
+            if (turf.booleanIntersects(drawnGeo, encGeo)) {
+                // Add selected polygon
+                selected.push(encGeo);
+
+                // Highlight it on the map
+                highlight(encFeatureLayer);
+            }
+        });
+    });
+
+    // Download selected polygons
+    document.getElementById("downloadBtn").onclick = function () {
+        if (selected.length === 0) {
+            alert("No polygons selected!");
+            return;
+        }
+
+        let fc = {
+            "type": "FeatureCollection",
+            "features": selected
+        };
+
+        let blob = new Blob([JSON.stringify(fc)], { type: "application/json" });
+        let url = URL.createObjectURL(blob);
+
+        let a = document.createElement("a");
+        a.href = url;
+        a.download = "selected_polygons.geojson";
+        a.click();
+    };
 </script>
 
 </body>
