@@ -4,7 +4,7 @@
     <title>My Map</title>
 
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    https://unpkg.com/leaflet/dist/leaflet.css
 
     <style>
         #map {
@@ -18,13 +18,13 @@
 <div id="map"></div>
 
 <!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+https://unpkg.com/leaflet/dist/leaflet.js
 
 <script>
-    // Center map on CHS HQ at 200 Kent Street
-    var chsKent = [45.417127, -75.70153];
+    // Center map on all of Canada
+    var canadaCenter = [56.1304, -106.3468];
 
-    var map = L.map('map').setView(chsKent, 17);
+    var map = L.map('map').setView(canadaCenter, 4);
 
     // Basemap
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
