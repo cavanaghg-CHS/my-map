@@ -3,8 +3,8 @@
 <head>
     <title>My Map</title>
 
-    <!-- Leaflet CSS -->
-    https://unpkg.com/leaflet/dist/leaflet.css
+    <!-- Leaflet CSS (correct format, this fixes your problem) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
     <style>
         #map {
@@ -18,10 +18,10 @@
 <div id="map"></div>
 
 <!-- Leaflet JS -->
-https://unpkg.com/leaflet/dist/leaflet.js
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-    // Center map on CHS HQ at 200 Kent Street (no marker this time)
+    // Center map on CHS HQ at 200 Kent Street
     var chsKent = [45.417127, -75.70153];
 
     var map = L.map('map').setView(chsKent, 17);
