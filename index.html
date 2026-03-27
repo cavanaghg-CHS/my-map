@@ -4,8 +4,12 @@
     <title>My Map</title>
 
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leafw CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+    <style>
         #map {
             height: 100vh;
             width: 100vw;
@@ -28,13 +32,15 @@
 <div id="map"></div>
 
 <!-- Leaflet JS -->
-<script src="https://flet/dist/leaflet.js
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <!-- Leaflet Draw JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1draw.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
 <!-- Turf.js -->
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.jscript>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+<script>
     var canadaCenter = [56.1304, -106.3468];
     var map = L.map('map').setView(canadaCenter, 4);
 
@@ -78,8 +84,11 @@
 
         encLayer.eachLayer(function(encFeatureLayer) {
             var encGeo = encFeatureLayer.toGeoJSON();
+
             if (turf.booleanIntersects(drawnGeo, encGeo)) {
-                selected.push(encGeo);
+                if (!selected.includes(encGeo)) {
+                    selected.push(encGeo);
+                }
                 highlight(encFeatureLayer);
             }
         });
