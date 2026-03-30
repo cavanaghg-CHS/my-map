@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="utf-8" />
     <title>ENC Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- Leaflet + plugins CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
 
@@ -14,15 +17,17 @@
             font-family: Arial, sans-serif;
         }
 
-        /* Sidebar: Selected ENC list */
+        /* ===============================
+           RIGHT SIDEBAR (ENC selection)
+        =============================== */
         #sidebar {
             position: absolute;
             top: 0;
-            left: 0;
+            right: 0;
             width: 260px;
             height: 100vh;
             background: #f7f7f7;
-            border-right: 1px solid #ccc;
+            border-left: 1px solid #ccc;
             padding: 10px;
             overflow-y: auto;
             z-index: 2000;
@@ -31,6 +36,16 @@
         #sidebar h2 {
             margin-top: 0;
             font-size: 18px;
+        }
+
+        #downloadBtn {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: white;
+            border: 1px solid #333;
+            cursor: pointer;
+            border-radius: 4px;
         }
 
         .enc-item {
@@ -53,193 +68,190 @@
             border-radius: 3px;
         }
 
-        /* Move Leaflet controls only 5px from the left */
-        .leaflet-top.leaflet-left {
-            left: 5px !important;
-        }
-
-        /* Download button on the right */
-        #downloadBtn {
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            z-index: 1500;
-            padding: 8px 14px;
-            background: white;
-            border: 1px solid #333;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-
+        /* ===============================
+           MAP (LEFT + CENTER)
+        =============================== */
         #map {
             position: absolute;
             top: 0;
-            left: 260px;
-            width: calc(100vw - 260px);
+            left: 0;
+            width: calc(100vw - 260px); /* leave space for sidebar */
             height: 100vh;
+            z-index: 0;
         }
+
+        /* ===============================
+           LEAFLET CONTROLS FIX
+        =============================== */
+        .leaflet-control {
+            z-index: 3000 !important;
+            pointer-events: auto !important;
+        }
+
     </style>
 </head>
+
 <body>
 
-<div id="sidebar">
-    <h2>ENC sélectionnées</h2>
-    <div id="encList"></div>
-</div>
+    <!-- RIGHT SIDEBAR -->
+    <div id="sidebar">
+        <h2>ENC sélectionnées</h2>
+        <button id="downloadBtn">Download Selected Polygons</button>
+        <div id="encList"></div>
+    </div>
 
-<button id="downloadBtn">Download Selected Polygons</button>
-<div id="map"></div>
+    <!-- MAP -->
+    <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <!-- Leaflet + plugins JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-<script>
-    var canadaCenter = [56.1304, -106.3468];
-    var map = L.map('map').setView(canadaCenter, 4);
+    <script>
+        /* ===============================
+           MAP INITIALIZATION
+        =============================== */
+        const canadaCenter = [56.1304, -106.3468];
+        const map = L.map("map").setView(canadaCenter, 4);
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-    }).addTo(map);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "© OpenStreetMap contributors"
+        }).addTo(map);
 
-    let encLayer;
-    let selected = [];
-    let drawnItems = new L.FeatureGroup();
-    map.addLayer(drawnItems);
+        /* ===============================
+           DRAW CONTROLS
+        =============================== */
+        let encLayer;
+        let selected = [];
 
-    var drawControl = new L.Control.Draw({
-        edit: { featureGroup: drawnItems },
-        draw: {
-            polygon: true,
-            polyline: true,
-            rectangle: true,
-            circle: false,
-            marker: true
-        }
-    });
-    map.addControl(drawControl);
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
 
-    function highlight(layer) {
-        layer.setStyle({ color: "yellow", weight: 3 });
-    }
-
-    function unhighlight(layer) {
-        layer.setStyle({ color: "#3388ff", weight: 1 });
-    }
-
-    function isSelected(feature) {
-        return selected.some(f => f.properties["Cell name"] === feature.properties["Cell name"]);
-    }
-
-    function toggleSelection(layer) {
-        const feature = layer.feature;
-
-        if (isSelected(feature)) {
-            selected = selected.filter(f => f.properties["Cell name"] !== feature.properties["Cell name"]);
-            unhighlight(layer);
-        } else {
-            selected.push(feature);
-            highlight(layer);
-        }
-
-        updateSidebar();
-    }
-
-    function updateSidebar() {
-        const list = document.getElementById("encList");
-        list.innerHTML = "";
-
-        selected.forEach(feature => {
-            const div = document.createElement("div");
-            div.className = "enc-item";
-
-            const name = feature.properties["Cell name"];
-
-            div.innerHTML = `
-                <span>${name}</span>
-                <button class="remove-btn">X</button>
-            `;
-
-            div.querySelector(".remove-btn").onclick = () => {
-                removeFeature(feature);
-            };
-
-            list.appendChild(div);
-        });
-    }
-
-    function removeFeature(feature) {
-        selected = selected.filter(f => f.properties["Cell name"] !== feature.properties["Cell name"]);
-
-        encLayer.eachLayer(layer => {
-            if (layer.feature.properties["Cell name"] === feature.properties["Cell name"]) {
-                unhighlight(layer);
+        const drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems },
+            draw: {
+                polygon: true,
+                polyline: true,
+                rectangle: true,
+                circle: false,
+                marker: true
             }
         });
+        map.addControl(drawControl);
 
-        updateSidebar();
-    }
-
-    function buildPopupContent(feature) {
-        let html = "";
-
-        const title = feature.properties["Cell name"];
-
-        html += `<h3>${title}</h3>`;
-
-        for (const key in feature.properties) {
-            html += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+        /* ===============================
+           SELECTION HELPERS
+        =============================== */
+        function highlight(layer) {
+            layer.setStyle({ color: "yellow", weight: 3 });
         }
 
-        return html;
-    }
+        function unhighlight(layer) {
+            layer.setStyle({ color: "#3388ff", weight: 1 });
+        }
 
-    fetch("data/ENCs.geojson")
-        .then(r => r.json())
-        .then(data => {
-            encLayer = L.geoJSON(data, {
-                style: { color: "#3388ff", weight: 1 },
-                onEachFeature: function (feature, layer) {
+        function isSelected(feature) {
+            return selected.some(f => f.properties["Cell name"] === feature.properties["Cell name"]);
+        }
 
-                    layer.on("mouseover", function () {
-                        if (!isSelected(feature)) {
-                            layer.setStyle({ weight: 3 });
-                        }
-                    });
+        function toggleSelection(layer) {
+            const feature = layer.feature;
 
-                    layer.on("mouseout", function () {
-                        if (!isSelected(feature)) {
-                            layer.setStyle({ weight: 1 });
-                        }
-                    });
+            if (isSelected(feature)) {
+                selected = selected.filter(f => f.properties["Cell name"] !== feature.properties["Cell name"]);
+                unhighlight(layer);
+            } else {
+                selected.push(feature);
+                highlight(layer);
+            }
 
-                    layer.on("click", function (e) {
-                        toggleSelection(layer);
+            updateSidebar();
+        }
 
-                        const popupContent = buildPopupContent(feature);
-                        layer.bindPopup(popupContent).openPopup(e.latlng);
-                    });
+        /* ===============================
+           SIDEBAR UPDATE
+        =============================== */
+        function updateSidebar() {
+            const list = document.getElementById("encList");
+            list.innerHTML = "";
+
+            selected.forEach(feature => {
+                const div = document.createElement("div");
+                div.className = "enc-item";
+
+                const name = feature.properties["Cell name"];
+
+                div.innerHTML = `
+                    <span>${name}</span>
+                    <button class="remove-btn">X</button>
+                `;
+
+                div.querySelector(".remove-btn").onclick = () => removeFeature(feature);
+                list.appendChild(div);
+            });
+        }
+
+        function removeFeature(feature) {
+            selected = selected.filter(f => f.properties["Cell name"] !== feature.properties["Cell name"]);
+
+            encLayer.eachLayer(layer => {
+                if (layer.feature.properties["Cell name"] === feature.properties["Cell name"]) {
+                    unhighlight(layer);
                 }
-            }).addTo(map);
-        });
+            });
 
-    document.getElementById("downloadBtn").onclick = function () {
-        if (selected.length === 0) {
-            alert("No polygons selected!");
-            return;
+            updateSidebar();
         }
 
-        let fc = { type: "FeatureCollection", features: selected };
+        /* ===============================
+           POPUPS
+        =============================== */
+        function buildPopupContent(feature) {
+            let html = `<h3>${feature.properties["Cell name"]}</h3>`;
+            for (const key in feature.properties) {
+                html += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+            }
+            return html;
+        }
 
-        let blob = new Blob([JSON.stringify(fc)], { type: "application/json" });
-        let url = URL.createObjectURL(blob);
+        /* ===============================
+           LOAD ENC GEOJSON
+        =============================== */
+        fetch("data/ENCs.geojson")
+            .then(r => r.json())
+            .then(data => {
+                encLayer = L.geoJSON(data, {
+                    style: { color: "#3388ff", weight: 1 },
+                    onEachFeature: (feature, layer) => {
+                        layer.on("click", e => {
+                            toggleSelection(layer);
+                            layer.bindPopup(buildPopupContent(feature)).openPopup(e.latlng);
+                        });
+                    }
+                }).addTo(map);
+            });
 
-        let a = document.createElement("a");
-        a.href = url;
-        a.download = "selected_polygons.geojson";
-        a.click();
-    };
-</script>
+        /* ===============================
+           DOWNLOAD BUTTON
+        =============================== */
+        document.getElementById("downloadBtn").onclick = () => {
+            if (selected.length === 0) {
+                alert("No polygons selected!");
+                return;
+            }
+
+            const fc = { type: "FeatureCollection", features: selected };
+            const blob = new Blob([JSON.stringify(fc)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "selected_polygons.geojson";
+            a.click();
+        };
+    </script>
 
 </body>
 </html>
