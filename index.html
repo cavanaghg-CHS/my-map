@@ -1,276 +1,274 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>ENC Viewer</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<title>ENC Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Leaflet & Draw CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
+https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css
 
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
 
-        /* ============ RIGHT SIDEBAR ============ */
-        #sidebar {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 260px;
-            height: 100vh;
-            background: #f7f7f7;
-            border-left: 1px solid #ccc;
-            padding: 10px;
-            overflow-y: auto;
-            z-index: 2000;
-        }
+/* ===== RIGHT SIDEBAR ===== */
+#sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 300px;
+    height: 100vh;
+    background: #f7f7f7;
+    border-left: 1px solid #ccc;
+    padding: 10px;
+    overflow-y: auto;
+    z-index: 2000;
+}
 
-        #sidebar h2 {
-            margin-top: 0;
-            font-size: 18px;
-        }
+h2, h3 {
+    margin-top: 0;
+}
 
-        #downloadBtn {
-            width: 100%;
-            margin-bottom: 10px;
-            padding: 8px;
-            background: white;
-            border: 1px solid #333;
-            cursor: pointer;
-            border-radius: 4px;
-        }
+select {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 4px;
+}
 
-        .enc-item {
-            padding: 6px;
-            margin-bottom: 6px;
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+#downloadBtn {
+    width: 100%;
+    margin: 10px 0;
+    padding: 8px;
+}
 
-        .remove-btn {
-            background: #d9534f;
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            cursor: pointer;
-            border-radius: 3px;
-        }
+/* ENC list */
+.enc-item {
+    padding: 6px;
+    margin-bottom: 6px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+}
 
-        /* ============ MAP ============ */
-        #map {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: calc(100vw - 260px);
-            height: 100vh;
-            z-index: 0;
-        }
+/* ===== MAP ===== */
+#map {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(100vw - 300px);
+    height: 100vh;
+}
 
-        /* Ensure Leaflet controls always work */
-        .leaflet-control {
-            z-index: 3000 !important;
-            pointer-events: auto !important;
-        }
+/* Leaflet controls fix */
+.leaflet-control {
+    z-index: 3000 !important;
+    pointer-events: auto !important;
+}
 
-        /* Tooltip styling */
-        .enc-tooltip {
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid #666;
-            border-radius: 4px;
-            padding: 6px;
-            font-size: 12px;
-            color: #000;
-            max-width: 300px;
-        }
-    </style>
+.enc-tooltip {
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #666;
+    padding: 6px;
+    font-size: 12px;
+}
+</style>
 </head>
 
 <body>
 
 <div id="sidebar">
     <h2>Selected ENCs</h2>
-    <button id="downloadBtn">Download Selected Polygons</button>
+
+    <h3>Filters</h3>
+
+    <!-- REGION FILTER -->
+    <label>Region</label>
+    <select id="regionFilter">
+        <option value="ALL">All regions</option>
+    </select>
+
+    <!-- SCALE FILTER -->
+    <label>Scale</label>
+    <select id="scaleFilter">
+        <option value="ALL">All scales</option>
+        <option value="PORT">Port (1–22 000)</option>
+        <option value="TRANSIT">Transit (22 001–350 000)</option>
+        <option value="OVERVIEW">Overview (350 001+)</option>
+    </select>
+
+    <button id="downloadBtn">Download Selected ENCs</button>
     <div id="encList"></div>
 </div>
 
 <div id="map"></div>
 
-<!-- Leaflet, Draw, Turf -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+https://unpkg.com/leaflet@1.9.4/dist/leaflet.jsscript>
+https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js>
+https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js
 
 <script>
-/* ============ MAP INITIALIZATION ============ */
-const map = L.map("map").setView([56.1304, -106.3468], 4);
+/* ================== CONFIG – ADJUST IF NEEDED ================== */
+const REGION_FIELD = "Region";          // 🔁 CHANGE if needed
+const SCALE_FIELD  = "Compilation scale"; // 🔁 CHANGE if needed
+const LINE_BUFFER_METERS = 500;
+/* =============================================================== */
 
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "© OpenStreetMap contributors"
-}).addTo(map);
+const map = L.map("map").setView([56.13, -106.3], 4);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-/* ============ DRAW CONTROLS ============ */
+let encLayer;
+let allFeatures = [];
+let selected = [];
+
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
-
 map.addControl(new L.Control.Draw({
     edit: { featureGroup: drawnItems },
-    draw: {
-        polygon: true,
-        rectangle: true,
-        polyline: true,
-        marker: false,
-        circle: false,
-        circlemarker: false
-    }
+    draw: { polygon: true, rectangle: true, polyline: true, marker:false, circle:false }
 }));
 
-/* ============ STATE ============ */
-let encLayer;
-let selected = [];
-const LINE_BUFFER_METERS = 500;
+/* ===== FILTER STATE ===== */
+let regionFilter = "ALL";
+let scaleFilter = "ALL";
 
-/* ============ HELPERS ============ */
-function highlight(layer) {
-    layer.setStyle({ color: "yellow", weight: 3 });
+/* ===== SCALE CATEGORY ===== */
+function scaleCategory(scale) {
+    if (scale <= 22000) return "PORT";
+    if (scale <= 350000) return "TRANSIT";
+    return "OVERVIEW";
 }
 
-function unhighlight(layer) {
-    layer.setStyle({ color: "#3388ff", weight: 1 });
+/* ===== FILTER CHECK ===== */
+function passesFilters(feature) {
+    if (regionFilter !== "ALL" &&
+        feature.properties[REGION_FIELD] !== regionFilter) return false;
+
+    if (scaleFilter !== "ALL" &&
+        scaleCategory(feature.properties[SCALE_FIELD]) !== scaleFilter) return false;
+
+    return true;
 }
 
-function isSelected(feature) {
-    return selected.some(f => f.properties["Cell name"] === feature.properties["Cell name"]);
+/* ===== SIDEBAR ===== */
+function updateSidebar() {
+    const list = document.getElementById("encList");
+    list.innerHTML = "";
+    selected.forEach(f => {
+        const d = document.createElement("div");
+        d.className = "enc-item";
+        d.innerHTML = `<span>${f.properties["Cell name"]}</span><button>X</button>`;
+        d.querySelector("button").onclick = () => {
+            selected = selected.filter(s => s !== f);
+            redrawENCs();
+        };
+        list.appendChild(d);
+    });
 }
 
-function buildTooltipContent(feature) {
-    let html = `<strong>${feature.properties["Cell name"]}</strong><br>`;
-    for (const key in feature.properties) {
-        if (key !== "Cell name") {
-            html += `${key}: ${feature.properties[key]}<br>`;
-        }
+/* ===== TOOLTIP ===== */
+function tooltipHTML(feature) {
+    let html = `<b>${feature.properties["Cell name"]}</b><br>`;
+    for (let k in feature.properties) {
+        html += `${k}: ${feature.properties[k]}<br>`;
     }
     return html;
 }
 
-function updateSidebar() {
-    const list = document.getElementById("encList");
-    list.innerHTML = "";
+/* ===== REDRAW LAYER BASED ON FILTERS ===== */
+function redrawENCs() {
+    if (encLayer) map.removeLayer(encLayer);
 
-    selected.forEach(feature => {
-        const div = document.createElement("div");
-        div.className = "enc-item";
-
-        div.innerHTML = `
-            <span>${feature.properties["Cell name"]}</span>
-            <button class="remove-btn">X</button>
-        `;
-
-        div.querySelector(".remove-btn").onclick = () => {
-            selected = selected.filter(
-                f => f.properties["Cell name"] !== feature.properties["Cell name"]
-            );
-
-            encLayer.eachLayer(l => {
-                if (l.feature.properties["Cell name"] === feature.properties["Cell name"]) {
-                    unhighlight(l);
-                }
+    encLayer = L.geoJSON(allFeatures.filter(passesFilters), {
+        style: f => ({
+            color: selected.includes(f) ? "yellow" : "#3388ff",
+            weight: selected.includes(f) ? 3 : 1
+        }),
+        onEachFeature: (feature, layer) => {
+            layer.bindTooltip(tooltipHTML(feature), {
+                sticky: true,
+                className: "enc-tooltip"
             });
 
-            updateSidebar();
-        };
+            layer.on("click", () => {
+                if (selected.includes(feature)) {
+                    selected = selected.filter(f => f !== feature);
+                } else {
+                    selected.push(feature);
+                }
+                redrawENCs();
+                updateSidebar();
+            });
+        }
+    }).addTo(map);
 
-        list.appendChild(div);
-    });
+    updateSidebar();
 }
 
-/* ============ DRAW-END SELECTION ============ */
-map.on(L.Draw.Event.CREATED, function (e) {
+/* ===== DRAW END SELECTION ===== */
+map.on(L.Draw.Event.CREATED, e => {
     drawnItems.clearLayers();
     drawnItems.addLayer(e.layer);
 
-    let selectionGeom = e.layer.toGeoJSON();
+    let geom = e.layer.toGeoJSON();
 
-    // Buffer line selections
-    if (selectionGeom.geometry.type === "LineString" ||
-        selectionGeom.geometry.type === "MultiLineString") {
-
-        selectionGeom = turf.buffer(selectionGeom, LINE_BUFFER_METERS, {
-            units: "meters"
-        });
+    if (geom.geometry.type.includes("Line")) {
+        geom = turf.buffer(geom, LINE_BUFFER_METERS, { units:"meters" });
     }
 
-    encLayer.eachLayer(layer => {
-        const feature = layer.feature;
-        if (turf.booleanIntersects(selectionGeom, feature)) {
-            if (!isSelected(feature)) {
-                selected.push(feature);
-                highlight(layer);
-            }
+    allFeatures.forEach(f => {
+        if (passesFilters(f) && turf.booleanIntersects(geom, f)) {
+            if (!selected.includes(f)) selected.push(f);
         }
     });
 
-    updateSidebar();
+    redrawENCs();
 });
 
-/* ============ LOAD ENCs ============ */
+/* ===== LOAD DATA ===== */
 fetch("data/ENCs.geojson")
-    .then(r => r.json())
-    .then(data => {
-        encLayer = L.geoJSON(data, {
-            style: { color: "#3388ff", weight: 1 },
-            onEachFeature: (feature, layer) => {
+.then(r => r.json())
+.then(data => {
+    allFeatures = data.features;
 
-                // Hover tooltip
-                layer.bindTooltip(
-                    buildTooltipContent(feature),
-                    {
-                        sticky: true,
-                        opacity: 0.95,
-                        className: "enc-tooltip"
-                    }
-                );
-
-                // Click selection
-                layer.on("click", () => {
-                    if (isSelected(feature)) {
-                        selected = selected.filter(
-                            f => f.properties["Cell name"] !== feature.properties["Cell name"]
-                        );
-                        unhighlight(layer);
-                    } else {
-                        selected.push(feature);
-                        highlight(layer);
-                    }
-                    updateSidebar();
-                });
-            }
-        }).addTo(map);
+    // Populate regions
+    const regions = [...new Set(allFeatures.map(f => f.properties[REGION_FIELD]))];
+    const regionSelect = document.getElementById("regionFilter");
+    regions.forEach(r => {
+        const o = document.createElement("option");
+        o.value = r;
+        o.textContent = r;
+        regionSelect.appendChild(o);
     });
 
-/* ============ DOWNLOAD ============ */
+    redrawENCs();
+});
+
+/* ===== FILTER EVENTS ===== */
+document.getElementById("regionFilter").onchange = e => {
+    regionFilter = e.target.value;
+    redrawENCs();
+};
+
+document.getElementById("scaleFilter").onchange = e => {
+    scaleFilter = e.target.value;
+    redrawENCs();
+};
+
+/* ===== DOWNLOAD ===== */
 document.getElementById("downloadBtn").onclick = () => {
-    if (!selected.length) {
-        alert("No polygons selected!");
-        return;
-    }
-
-    const fc = { type: "FeatureCollection", features: selected };
-    const blob = new Blob([JSON.stringify(fc)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
+    if (!selected.length) return alert("No ENCs selected");
+    const blob = new Blob(
+        [JSON.stringify({ type:"FeatureCollection", features:selected })],
+        { type:"application/json" }
+    );
     const a = document.createElement("a");
-    a.href = url;
+    a.href = URL.createObjectURL(blob);
     a.download = "selected_ENCs.geojson";
     a.click();
 };
@@ -278,4 +276,3 @@ document.getElementById("downloadBtn").onclick = () => {
 
 </body>
 </html>
-``
