@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8">
 <title>ENC Viewer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
-https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css
+<!-- ✅ CSS MUST USE <link> -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"https://cdnjs.cloudflare.com/ajax/libs/aw.css
 
 <style>
 body {
@@ -15,7 +15,7 @@ body {
     font-family: Arial, sans-serif;
 }
 
-/* ===== RIGHT SIDEBAR ===== */
+/* Sidebar */
 #sidebar {
     position: absolute;
     top: 0;
@@ -29,34 +29,6 @@ body {
     z-index: 2000;
 }
 
-h2, h3 {
-    margin-top: 0;
-}
-
-select {
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 4px;
-}
-
-#downloadBtn {
-    width: 100%;
-    margin: 10px 0;
-    padding: 8px;
-}
-
-/* ENC list */
-.enc-item {
-    padding: 6px;
-    margin-bottom: 6px;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-between;
-}
-
-/* ===== MAP ===== */
 #map {
     position: absolute;
     left: 0;
@@ -65,7 +37,21 @@ select {
     height: 100vh;
 }
 
-/* Leaflet controls fix */
+select, button {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 6px;
+}
+
+.enc-item {
+    background: white;
+    padding: 6px;
+    margin-bottom: 6px;
+    border: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+}
+
 .leaflet-control {
     z-index: 3000 !important;
     pointer-events: auto !important;
@@ -85,21 +71,17 @@ select {
 <div id="sidebar">
     <h2>Selected ENCs</h2>
 
-    <h3>Filters</h3>
-
-    <!-- REGION FILTER -->
     <label>Region</label>
     <select id="regionFilter">
         <option value="ALL">All regions</option>
     </select>
 
-    <!-- SCALE FILTER -->
     <label>Scale</label>
     <select id="scaleFilter">
         <option value="ALL">All scales</option>
-        <option value="PORT">Port (1–22 000)</option>
+        <option value="PORT">Port (≤22 000)</option>
         <option value="TRANSIT">Transit (22 001–350 000)</option>
-        <option value="OVERVIEW">Overview (350 001+)</option>
+        <option value="OVERVIEW">Overview (≥350 001)</option>
     </select>
 
     <button id="downloadBtn">Download Selected ENCs</button>
@@ -108,80 +90,62 @@ select {
 
 <div id="map"></div>
 
-https://unpkg.com/leaflet@1.9.4/dist/leaflet.jsscript>
-https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js>
-https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js
+<!-- ✅ JS MUST USE <script> -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.jsript src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <script>
-/* ================== CONFIG – ADJUST IF NEEDED ================== */
-const REGION_FIELD = "Region";          // 🔁 CHANGE if needed
-const SCALE_FIELD  = "Compilation scale"; // 🔁 CHANGE if needed
+/* ---- CONFIG ---- */
+const REGION_FIELD = "Region";
+const SCALE_FIELD  = "Compilation scale";
 const LINE_BUFFER_METERS = 500;
-/* =============================================================== */
 
+/* ---- MAP ---- */
 const map = L.map("map").setView([56.13, -106.3], 4);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-let encLayer;
-let allFeatures = [];
-let selected = [];
-
+/* ---- DRAW ---- */
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
 map.addControl(new L.Control.Draw({
     edit: { featureGroup: drawnItems },
-    draw: { polygon: true, rectangle: true, polyline: true, marker:false, circle:false }
+    draw: { polygon:true, rectangle:true, polyline:true, marker:false, circle:false }
 }));
 
-/* ===== FILTER STATE ===== */
+let encLayer;
+let allFeatures = [];
+let selected = [];
 let regionFilter = "ALL";
 let scaleFilter = "ALL";
 
-/* ===== SCALE CATEGORY ===== */
+/* ---- HELPERS ---- */
 function scaleCategory(scale) {
     if (scale <= 22000) return "PORT";
     if (scale <= 350000) return "TRANSIT";
     return "OVERVIEW";
 }
 
-/* ===== FILTER CHECK ===== */
-function passesFilters(feature) {
-    if (regionFilter !== "ALL" &&
-        feature.properties[REGION_FIELD] !== regionFilter) return false;
-
-    if (scaleFilter !== "ALL" &&
-        scaleCategory(feature.properties[SCALE_FIELD]) !== scaleFilter) return false;
-
+function passesFilters(f) {
+    if (regionFilter !== "ALL" && f.properties[REGION_FIELD] !== regionFilter) return false;
+    if (scaleFilter !== "ALL" && scaleCategory(f.properties[SCALE_FIELD]) !== scaleFilter) return false;
     return true;
 }
 
-/* ===== SIDEBAR ===== */
 function updateSidebar() {
-    const list = document.getElementById("encList");
-    list.innerHTML = "";
+    encList.innerHTML = "";
     selected.forEach(f => {
         const d = document.createElement("div");
         d.className = "enc-item";
         d.innerHTML = `<span>${f.properties["Cell name"]}</span><button>X</button>`;
         d.querySelector("button").onclick = () => {
-            selected = selected.filter(s => s !== f);
-            redrawENCs();
+            selected = selected.filter(x => x !== f);
+            redraw();
         };
-        list.appendChild(d);
+        encList.appendChild(d);
     });
 }
 
-/* ===== TOOLTIP ===== */
-function tooltipHTML(feature) {
-    let html = `<b>${feature.properties["Cell name"]}</b><br>`;
-    for (let k in feature.properties) {
-        html += `${k}: ${feature.properties[k]}<br>`;
-    }
-    return html;
-}
-
-/* ===== REDRAW LAYER BASED ON FILTERS ===== */
-function redrawENCs() {
+function redraw() {
     if (encLayer) map.removeLayer(encLayer);
 
     encLayer = L.geoJSON(allFeatures.filter(passesFilters), {
@@ -189,20 +153,16 @@ function redrawENCs() {
             color: selected.includes(f) ? "yellow" : "#3388ff",
             weight: selected.includes(f) ? 3 : 1
         }),
-        onEachFeature: (feature, layer) => {
-            layer.bindTooltip(tooltipHTML(feature), {
-                sticky: true,
-                className: "enc-tooltip"
-            });
+        onEachFeature: (f, l) => {
+            l.bindTooltip(Object.entries(f.properties)
+                .map(p => `${p[0]}: ${p[1]}`).join("<br>"),
+                { sticky:true, className:"enc-tooltip" });
 
-            layer.on("click", () => {
-                if (selected.includes(feature)) {
-                    selected = selected.filter(f => f !== feature);
-                } else {
-                    selected.push(feature);
-                }
-                redrawENCs();
-                updateSidebar();
+            l.on("click", () => {
+                selected.includes(f)
+                    ? selected = selected.filter(x=>x!==f)
+                    : selected.push(f);
+                redraw();
             });
         }
     }).addTo(map);
@@ -210,13 +170,12 @@ function redrawENCs() {
     updateSidebar();
 }
 
-/* ===== DRAW END SELECTION ===== */
+/* ---- DRAW END ---- */
 map.on(L.Draw.Event.CREATED, e => {
     drawnItems.clearLayers();
     drawnItems.addLayer(e.layer);
 
     let geom = e.layer.toGeoJSON();
-
     if (geom.geometry.type.includes("Line")) {
         geom = turf.buffer(geom, LINE_BUFFER_METERS, { units:"meters" });
     }
@@ -227,46 +186,29 @@ map.on(L.Draw.Event.CREATED, e => {
         }
     });
 
-    redrawENCs();
+    redraw();
 });
 
-/* ===== LOAD DATA ===== */
+/* ---- LOAD DATA ---- */
 fetch("data/ENCs.geojson")
 .then(r => r.json())
-.then(data => {
-    allFeatures = data.features;
+.then(d => {
+    allFeatures = d.features;
 
-    // Populate regions
-    const regions = [...new Set(allFeatures.map(f => f.properties[REGION_FIELD]))];
-    const regionSelect = document.getElementById("regionFilter");
-    regions.forEach(r => {
-        const o = document.createElement("option");
-        o.value = r;
-        o.textContent = r;
-        regionSelect.appendChild(o);
-    });
+    [...new Set(allFeatures.map(f => f.properties[REGION_FIELD]))]
+        .forEach(r => regionFilterEl.add(new Option(r, r)));
 
-    redrawENCs();
+    redraw();
 });
 
-/* ===== FILTER EVENTS ===== */
-document.getElementById("regionFilter").onchange = e => {
-    regionFilter = e.target.value;
-    redrawENCs();
-};
+/* ---- FILTER EVENTS ---- */
+regionFilter.onchange = e => { regionFilter = e.target.value; redraw(); };
+scaleFilter.onchange = e => { scaleFilter = e.target.value; redraw(); };
 
-document.getElementById("scaleFilter").onchange = e => {
-    scaleFilter = e.target.value;
-    redrawENCs();
-};
-
-/* ===== DOWNLOAD ===== */
-document.getElementById("downloadBtn").onclick = () => {
+/* ---- DOWNLOAD ---- */
+downloadBtn.onclick = () => {
     if (!selected.length) return alert("No ENCs selected");
-    const blob = new Blob(
-        [JSON.stringify({ type:"FeatureCollection", features:selected })],
-        { type:"application/json" }
-    );
+    const blob = new Blob([JSON.stringify({ type:"FeatureCollection", features:selected })]);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "selected_ENCs.geojson";
