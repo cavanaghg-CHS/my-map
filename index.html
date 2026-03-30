@@ -1,178 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <title>ENC Viewer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9="stylesheet" href="https://cdnjs.cloudflare.com/ajaxlet.draw.css
+<!-- ================= CSS ================= -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
 
 <style>
-body { margin:0; overflow:hidden; font-family:Arial,sans-serif; }
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
 
 #sidebar {
-  position:absolute; top:0; right:0;
-  width:300px; height:100vh;
-  background:#f7f7f7;
-  border-left:1px solid #ccc;
-  padding:10px;
-  overflow-y:auto; z-index:2000;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 300px;
+    height: 100%;
+    background: #f7f7f7;
+    border-left: 1px solid #ccc;
+    padding: 10px;
+    overflow-y: auto;
+    z-index: 2000;
 }
 
 #map {
-  position:absolute; left:0; top:0;
-  width:calc(100vw - 300px);
-  height:100vh;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(100% - 300px);
+    height: 100%;
 }
 
-select, button { width:100%; margin-bottom:10px; padding:6px; }
+select, button {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 6px;
+}
 
 .enc-item {
-  background:white; padding:6px; margin-bottom:6px;
-  border:1px solid #ccc; display:flex; justify-content:space-between;
+    background: white;
+    padding: 6px;
+    margin-bottom: 6px;
+    border: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.leaflet-control { z-index:3000 !important; pointer-events:auto !important; }
+.leaflet-control {
+    z-index: 3000 !important;
+    pointer-events: auto !important;
+}
 
 .enc-tooltip {
-  background:rgba(255,255,255,0.95);
-  border:1px solid #666; padding:6px; font-size:12px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #666;
+    padding: 6px;
+    font-size: 12px;
 }
 </style>
 </head>
 
 <body>
 
+<!-- ================= SIDEBAR ================= -->
 <div id="sidebar">
-  <h2>Selected ENCs</h2>
+    <h2>Selected ENCs</h2>
 
-  <label>Region</label>
-  <select id="regionFilter">
-    <option value="ALL">All regions</option>
-  </select>
+    <label>Region</label>
+    <select id="regionFilter">
+        <option value="ALL">All regions</option>
+    </select>
 
-  <label>Scale</label>
-  <select id="scaleFilter">
-    <option value="ALL">All scales</option>
-    <option value="PORT">Port (≤22 000)</option>
-    <option value="TRANSIT">Transit (22 001–350 000)</option>
-    <option value="OVERVIEW">Overview (≥350 001)</option>
-  </select>
+    <label>Scale</label>
+    <select id="scaleFilter">
+        <option value="ALL">All scales</option>
+        <option value="PORT">Port (≤ 22 000)</option>
+        <option value="TRANSIT">Transit (22 001–350 000)</option>
+        <option value="OVERVIEW">Overview (≥ 350 001)</option>
+    </select>
 
-  <button id="downloadBtn">Download Selected ENCs</button>
-  <div id="encList"></div>
+    <button id="downloadBtn">Download Selected ENCs</button>
+    <div id="encList"></div>
 </div>
 
+<!-- ================= MAP ================= -->
 <div id="map"></div>
 
-<!-- JS (CORRECTLY LOADED) -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.jsript src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<!-- ================= JS ================= -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <script>
-/* CONFIG */
-const REGION_FIELD = "Region";
-const SCALE_FIELD  = "Compilation scale";
+/* ================= CONFIG ================= */
+const REGION_FIELD = "Region";              // adjust if needed
+const SCALE_FIELD  = "Compilation scale";   // adjust if needed
 const LINE_BUFFER_METERS = 500;
 
-/* DOM */
-const regionFilterEl = document.getElementById("regionFilter");
-const scaleFilterEl  = document.getElementById("scaleFilter");
-const downloadBtn   = document.getElementById("downloadBtn");
-const encList       = document.getElementById("encList");
+/* ================= DOM ================= */
+const regionSelect = document.getElementById("regionFilter");
+const scaleSelect  = document.getElementById("scaleFilter");
+const downloadBtn  = document.getElementById("downloadBtn");
+const encList      = document.getElementById("encList");
 
-/* MAP */
+/* ================= MAP ================= */
 const map = L.map("map").setView([56.13, -106.3], 4);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap contributors"
+}).addTo(map);
+
+/* ================= DRAW ================= */
 const drawnItems = new L.FeatureGroup().addTo(map);
+
 map.addControl(new L.Control.Draw({
-  edit:{ featureGroup:drawnItems },
-  draw:{ polygon:true, rectangle:true, polyline:true, marker:false, circle:false }
+    edit: { featureGroup: drawnItems },
+    draw: {
+        polygon: true,
+        rectangle: true,
+        polyline: true,
+        marker: false,
+        circle: false
+    }
 }));
 
+/* ================= STATE ================= */
 let allFeatures = [];
 let encLayer;
 let selected = [];
+
 let regionFilter = "ALL";
 let scaleFilter  = "ALL";
 
-/* HELPERS */
-const scaleCategory = s =>
-  s <= 22000 ? "PORT" : s <= 350000 ? "TRANSIT" : "OVERVIEW";
+/* ================= HELPERS ================= */
+function scaleCategory(scale) {
+    if (scale <= 22000) return "PORT";
+    if (scale <= 350000) return "TRANSIT";
+    return "OVERVIEW";
+}
 
-const passesFilters = f =>
-  (regionFilter==="ALL" || f.properties[REGION_FIELD]===regionFilter) &&
-  (scaleFilter==="ALL" || scaleCategory(f.properties[SCALE_FIELD])===scaleFilter);
+function passesFilters(f) {
+    if (regionFilter !== "ALL" && f.properties[REGION_FIELD] !== regionFilter) return false;
+    if (scaleFilter !== "ALL" && scaleCategory(f.properties[SCALE_FIELD]) !== scaleFilter) return false;
+    return true;
+}
 
-/* SIDEBAR */
 function updateSidebar() {
-  encList.innerHTML = "";
-  selected.forEach(f => {
-    const d = document.createElement("div");
-    d.className="enc-item";
-    d.innerHTML=`<span>${f.properties["Cell name"]}</span><button>X</button>`;
-    d.querySelector("button").onclick=()=> {
-      selected = selected.filter(x=>x!==f);
-      redraw();
-    };
-    encList.appendChild(d);
-  });
+    encList.innerHTML = "";
+    selected.forEach(f => {
+        const div = document.createElement("div");
+        div.className = "enc-item";
+        div.innerHTML = `<span>${f.properties["Cell name"]}</span><button>X</button>`;
+        div.querySelector("button").onclick = () => {
+            selected = selected.filter(x => x !== f);
+            redrawENCs();
+        };
+        encList.appendChild(div);
+    });
 }
 
-/* REDRAW */
-function redraw() {
-  if (encLayer) map.removeLayer(encLayer);
-  encLayer = L.geoJSON(allFeatures.filter(passesFilters), {
-    style:f=>({ color:selected.includes(f)?"yellow":"#3388ff", weight:selected.includes(f)?3:1 }),
-    onEachFeature:(f,l)=>{
-      l.bindTooltip(
-        Object.entries(f.properties).map(p=>`${p[0]}: ${p[1]}`).join("<br>"),
-        { sticky:true, className:"enc-tooltip" }
-      );
-      l.on("click",()=>{
-        selected.includes(f) ? selected=selected.filter(x=>x!==f) : selected.push(f);
-        redraw();
-      });
+function tooltipHTML(f) {
+    return Object.entries(f.properties)
+        .map(p => `<b>${p[0]}</b>: ${p[1]}`)
+        .join("<br>");
+}
+
+/* ================= REDRAW ================= */
+function redrawENCs() {
+    if (encLayer) map.removeLayer(encLayer);
+
+    encLayer = L.geoJSON(allFeatures.filter(passesFilters), {
+        style: f => ({
+            color: selected.includes(f) ? "yellow" : "#3388ff",
+            weight: selected.includes(f) ? 3 : 1
+        }),
+        onEachFeature: (f, layer) => {
+            layer.bindTooltip(tooltipHTML(f), {
+                sticky: true,
+                className: "enc-tooltip"
+            });
+
+            layer.on("click", () => {
+                selected.includes(f)
+                    ? selected = selected.filter(x => x !== f)
+                    : selected.push(f);
+                redrawENCs();
+            });
+        }
+    }).addTo(map);
+
+    updateSidebar();
+}
+
+/* ================= DRAW END ================= */
+map.on(L.Draw.Event.CREATED, e => {
+    drawnItems.clearLayers();
+    drawnItems.addLayer(e.layer);
+
+    let geom = e.layer.toGeoJSON();
+
+    if (geom.geometry.type.includes("Line")) {
+        geom = turf.buffer(geom, LINE_BUFFER_METERS, { units: "meters" });
     }
-  }).addTo(map);
-  updateSidebar();
-}
 
-/* DRAW END */
-map.on(L.Draw.Event.CREATED, e=>{
-  drawnItems.clearLayers(); drawnItems.addLayer(e.layer);
-  let geom=e.layer.toGeoJSON();
-  if(geom.geometry.type.includes("Line"))
-    geom=turf.buffer(geom,LINE_BUFFER_METERS,{units:"meters"});
-  allFeatures.forEach(f=>{
-    if(passesFilters(f)&&turf.booleanIntersects(geom,f)&&!selected.includes(f))
-      selected.push(f);
-  });
-  redraw();
+    allFeatures.forEach(f => {
+        if (passesFilters(f) &&
+            turf.booleanIntersects(geom, f) &&
+            !selected.includes(f)) {
+            selected.push(f);
+        }
+    });
+
+    redrawENCs();
 });
 
-/* LOAD DATA */
-fetch("data/ENCs.geojson").then(r=>r.json()).then(d=>{
-  allFeatures = d.features;
-  [...new Set(allFeatures.map(f=>f.properties[REGION_FIELD]))]
-    .forEach(r=>regionFilterEl.add(new Option(r,r)));
-  redraw();
+/* ================= LOAD DATA ================= */
+fetch("data/ENCs.geojson")
+.then(r => r.json())
+.then(data => {
+    allFeatures = data.features;
+
+    const regions = [...new Set(allFeatures.map(f => f.properties[REGION_FIELD]))];
+    regions.forEach(r => regionSelect.add(new Option(r, r)));
+
+    redrawENCs();
 });
 
-/* FILTER EVENTS */
-regionFilterEl.onchange=e=>{ regionFilter=e.target.value; redraw(); };
-scaleFilterEl.onchange=e=>{ scaleFilter=e.target.value; redraw(); };
+/* ================= FILTER HANDLERS ================= */
+regionSelect.onchange = e => {
+    regionFilter = e.target.value;
+    redrawENCs();
+};
 
-/* DOWNLOAD */
-downloadBtn.onclick=()=>{
-  if(!selected.length) return alert("No ENCs selected");
-  const blob=new Blob([JSON.stringify({type:"FeatureCollection",features:selected})]);
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="selected_ENCs.geojson";
-  a.click();
+scaleSelect.onchange = e => {
+    scaleFilter = e.target.value;
+    redrawENCs();
+};
+
+/* ================= DOWNLOAD ================= */
+downloadBtn.onclick = () => {
+    if (!selected.length) {
+        alert("No ENCs selected");
+        return;
+    }
+
+    const blob = new Blob(
+        [JSON.stringify({ type:"FeatureCollection", features:selected })],
+        { type:"application/json" }
+    );
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "selected_ENCs.geojson";
+    a.click();
 };
 </script>
 
